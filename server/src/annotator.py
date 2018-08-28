@@ -230,13 +230,7 @@ def _edit_span(ann_obj, mods, id, offsets, projectconf, attributes, type,
             mods.change(before, tb_ann)
 
     if ann.type != type:
-        # TODO: delete existing attributes if they are invalid on the new entity type
-        # if entity type changes, delete existing attributes to prevent invalid attributes
-        existing_attr_anns = set((a for a in ann_obj.get_attributes() if a.target == ann.id))
-        if len(existing_attr_anns) != 0:
-            Messager.error('Cannot change entity type of annotation with existing attributes!'
-                           + ' Please delete the annotation and create a new one!')
-        elif ann_category != projectconf.type_category(type):
+        if ann_category != projectconf.type_category(type):
             # Can't convert event to entity etc. (The client should protect
             # against this in any case.)
             # TODO: Raise some sort of protocol error
@@ -621,6 +615,13 @@ def _create_span(collection, document, offsets, _type, attributes=None,
             # We are to edit an existing annotation
             tb_ann, e_ann = _edit_span(ann_obj, mods, _id, offsets, projectconf,
                     _attributes, _type, undo_resp=undo_resp)
+            # Remove invalid attributes (invalid attributes may occur if entity type changed)
+            if tb_ann:
+                allowed_attrs = set(projectconf.attributes_for(tb_ann.type))
+                for k in _attributes.keys():
+                    if k not in allowed_attrs:
+                        _attributes.pop(k, None)
+
         else:
             # We are to create a new annotation
             tb_ann, e_ann = __create_span(ann_obj, mods, _type, offsets, txt_file_path,
